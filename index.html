@@ -42,7 +42,7 @@
         .info-board h1 { font-size: 1.2rem; color: #333; margin: 0 0 4px 0; }
         .info-board p { margin: 2px 0; color: #555; font-size: 0.95rem; }
         
-        /* 數據列：顯示累積次數與最高Combo */
+        /* 數據列 */
         .stats-container {
             display: flex;
             justify-content: center;
@@ -172,10 +172,9 @@
 <body>
 
     <div class="info-board">
-        <!-- 標題已更新 -->
         <h1>☀️ STAFF ON MOVE ☀️</h1>
-        <p><strong>活動：</strong>ABC-MART x PALLADIUM|步入山林 夏季野行</p>
-        <p><strong>時間：</strong>2026 / 06 / 12 (五)| <strong>地點：</strong>劍潭山步道</p>
+        <p><strong>活動：</strong>步入山林 夏季野行</p>
+        <p><strong>時間：</strong>2026 / 06 / 12 | <strong>地點：</strong>劍潭山步道</p>
         
         <div class="stats-container">
             <div class="counter-box">🔥 已集氣：<span id="burnCount">0</span> 次</div>
@@ -244,10 +243,10 @@
 
         let turtleType = 'normal'; 
         let rand = Math.random();
-        if (rand < 0.05) { 
-            turtleType = 'golden'; 
-        } else if (rand < 0.12) {
-            turtleType = 'giant';  
+        if (rand < 0.06) { 
+            turtleType = 'golden'; // 6% 閃光金光龜
+        } else if (rand < 0.15) {
+            turtleType = 'giant';  // 9% 巨型大烏龜
         }
 
         const dpr = window.devicePixelRatio || 1;
@@ -257,10 +256,11 @@
         localStorage.setItem('turtleBurnCount_ABC', totalBurned);
         burnCountEl.textContent = totalBurned;
 
+        // 👉 修改關鍵：計時器縮短至 500 毫秒 (0.5 秒)
         clearTimeout(comboTimer);
         comboTimer = setTimeout(() => {
             endRoundAndShowSun();
-        }, 1500);
+        }, 500);
     }
 
     function updateComboDisplay() {
@@ -277,24 +277,22 @@
     }
 
     function spawnTurtle(w, h, type) {
-        let size = Math.random() * 8 + 25;
-        let emoji = '🐢';
+        let size = Math.random() * 6 + 25; 
         let burnRate = Math.random() * 0.006 + 0.005;
 
         if (type === 'golden') {
-            size = 45;
-            emoji = '👑'; 
-            burnRate = 0.003; 
+            size = 38;         
+            burnRate = 0.0035; 
         } else if (type === 'giant') {
-            size = 60;
-            burnRate = 0.004;
+            size = 58;         
+            burnRate = 0.0025; 
         }
 
         const x = Math.random() * (w - size) + size/2;
         const y = h - (Math.random() * (h * 0.65) + size + 35);
 
         turtles.push({
-            x: x, y: y, size: size, emoji: emoji, type: type, alpha: 1,
+            x: x, y: y, size: size, emoji: '🐢', type: type, alpha: 1,
             burnRate: burnRate, fireTick: Math.random() * 100
         });
 
@@ -317,9 +315,9 @@
         document.getElementById('triggerBurnBtn').disabled = true;
         comboTextEl.classList.remove('active');
 
-        if (currentCombo >= 40) {
+        if (currentCombo >= 30) {
             sunEvaluationEl.textContent = `🔥 狂暴大晴天！(Combo ${currentCombo})`;
-        } else if (currentCombo >= 20) {
+        } else if (currentCombo >= 15) {
             sunEvaluationEl.textContent = `☀️ 絕對是個大晴天！(Combo ${currentCombo})`;
         } else {
             sunEvaluationEl.textContent = `🌤️ 太陽公公露臉囉！(Combo ${currentCombo})`;
@@ -374,15 +372,15 @@
             
             if (t.type === 'golden') {
                 ctx.shadowColor = '#ffd700';
-                ctx.shadowBlur = 15;
+                ctx.shadowBlur = 20;
             }
             
             ctx.fillText(t.emoji, t.x, t.y);
 
             if (t.alpha > 0.1) {
-                ctx.font = `${t.size * 0.8}px Arial`;
+                ctx.font = `${t.size * 0.85}px Arial`;
                 let fireX = t.x + Math.sin(t.fireTick * 0.25) * 3;
-                let fireY = t.y - (t.size * 0.3) + Math.cos(t.fireTick * 0.25) * 2;
+                let fireY = t.y - (t.size * 0.35) + Math.cos(t.fireTick * 0.25) * 2;
                 ctx.fillText(t.type === 'golden' ? '💥' : '🔥', fireX, fireY);
             }
             ctx.restore();
