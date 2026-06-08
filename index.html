@@ -237,6 +237,7 @@
         <div id="comboText">0 Combo</div>
     </div>
 
+    <!-- 雙條顯示區 -->
     <div class="bars-container" id="barsContainer">
         <div class="bar-wrapper">
             <span>❤️ 生命值:</span>
@@ -254,8 +255,9 @@
 
     <div id="canvasContainer">
         <canvas id="mainCanvas"></canvas>
-        <div id="gameHint">🐢 戳烏龜：獲得經驗值（EXP）以太全力升級！<br>❌ 本局無法回血！血條扣空即結束！<br>漏接烏龜扣血且斷 Combo，看你能修煉到哪種烏龜境界！</div>
+        <div id="gameHint">🐢 戳烏龜：獲得經驗值（EXP）以太全力升級！<br>❌ 狂暴超速！Combo 越高或等級越高，爬行速度飆升越快！<br>漏接烏龜扣血且斷 Combo，看你能修煉到哪種烏龜境界！</div>
         
+        <!-- 大太陽結算層 -->
         <div id="sunOverlay">
             <div class="big-sun">🌞</div>
             <div class="sun-title" id="sunEvaluation">境界稱號</div>
@@ -295,7 +297,6 @@
     let maxCombo = localStorage.getItem('turtleMaxCombo') ? parseInt(localStorage.getItem('turtleMaxCombo')) : 0;
     maxComboEl.textContent = maxCombo;
 
-    // 👉 核心修改：純烏龜/龜系修仙境界稱號
     function getTitle(lv) {
         if (lv === 99) return "天道大晴神龜 🌌";
         if (lv >= 85) return "狂暴烈陽聖龜 👑";
@@ -349,7 +350,8 @@
         const w = canvas.width / dpr;
         const h = canvas.height / dpr;
 
-        let spawnInterval = Math.max(220, 1100 - (level * 12) - (currentCombo * 6)); 
+        // 生成頻率也會隨之提早加快
+        let spawnInterval = Math.max(180, 1100 - (level * 18) - (currentCombo * 12)); 
 
         let turtleType = 'normal';
         let rand = Math.random();
@@ -362,14 +364,18 @@
 
     function spawnTurtle(w, h, type) {
         let size = Math.random() * 5 + 35; 
-        let speed = Math.random() * 0.7 + 0.6 + (level * 0.025); 
+        
+        // 👉 核心修改：大幅拉高 Combo 數對移動速度的影響係數 (從原本 0.025 大幅提升至 0.08)
+        // 這樣只要手速快連續點中，幾隻之後烏龜速度就會像火箭一樣往上噴
+        let speedMultiplier = 0.6 + (level * 0.04) + (currentCombo * 0.08);
+        let speed = Math.random() * 0.7 + speedMultiplier; 
 
         if (type === 'golden') {
             size = 32; 
-            speed += 0.5; 
+            speed += 0.6; 
         } else if (type === 'giant') {
             size = 62; 
-            speed -= 0.15; 
+            speed -= 0.2; 
         }
 
         turtles.push({
@@ -410,7 +416,6 @@
                 currentCombo++;
                 updateComboDisplay(true);
 
-                // 經驗值機制
                 let expGain = t.type === 'golden' ? 100 : (t.type === 'giant' ? 30 : 15);
                 
                 if (level < 99) {
