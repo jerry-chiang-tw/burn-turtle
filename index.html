@@ -58,6 +58,39 @@
             border-radius: 20px;
         }
 
+        /* 雙條容器區 */
+        .bars-container {
+            width: 90%;
+            max-width: 450px;
+            margin: 5px auto 10px auto;
+            display: none; /* 遊戲開始才顯示 */
+        }
+        .bar-wrapper {
+            margin-bottom: 6px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.85rem;
+            font-weight: bold;
+            color: #333;
+        }
+        .bar-bg {
+            flex: 1;
+            background: rgba(255, 255, 255, 0.5);
+            height: 14px;
+            border-radius: 7px;
+            overflow: hidden;
+            border: 1px solid #fff;
+            position: relative;
+        }
+        .bar-fill {
+            height: 100%;
+            width: 0%;
+            transition: width 0.1s ease-out;
+        }
+        #hpBar { background: linear-gradient(to right, #ff1744, #ff5252); width: 100%; }
+        #chargeBar { background: linear-gradient(to right, #ff9100, #ffea00); width: 0%; }
+
         /* Combo 顯示文字 */
         #comboText {
             position: absolute;
@@ -122,7 +155,7 @@
             top: 45%;
             left: 50%;
             transform: translate(-50%, -50%);
-            font-size: 1.2rem;
+            font-size: 1.1rem;
             font-weight: bold;
             color: #555;
             pointer-events: none;
@@ -153,6 +186,12 @@
             color: #d84315;
             margin-top: 10px;
             text-shadow: 1px 1px 0 #fff;
+        }
+        .sun-score {
+            font-size: 1.2rem;
+            font-weight: bold;
+            color: #333;
+            margin-top: 5px;
         }
 
         .btn-again {
@@ -187,10 +226,23 @@
         <p><strong>時間：</strong>2026 / 06 / 12 | <strong>地點：</strong>劍潭山步道</p>
         
         <div class="stats-container">
-            <div class="counter-box">🔥 總祈願分數：<span id="burnCount">0</span></div>
+            <!-- 這裡顯示當局的實時總累計分數 -->
+            <div class="counter-box">☀️ 當局分數：<span id="currentScore">0</span></div>
             <div class="counter-box" style="color: #d84315; background: rgba(216,67,21,0.1);">⚡ 最高 Combo：<span id="maxCombo">0</span></div>
         </div>
         <div id="comboText">0 Combo</div>
+    </div>
+
+    <!-- 雙條顯示區 -->
+    <div class="bars-container" id="barsContainer">
+        <div class="bar-wrapper">
+            <span>❤️ 生命值:</span>
+            <div class="bar-bg"><div class="bar-fill" id="hpBar"></div></div>
+        </div>
+        <div class="bar-wrapper">
+            <span>🔥 集氣度:</span>
+            <div class="bar-bg"><div class="bar-fill" id="chargeBar"></div></div>
+        </div>
     </div>
 
     <div class="btn-container">
@@ -199,12 +251,13 @@
 
     <div id="canvasContainer">
         <canvas id="mainCanvas"></canvas>
-        <div id="gameHint">🐢 點擊爬出來的烏龜將牠點燃！<br>手速停下超過 1.5 秒即結算。</div>
+        <div id="gameHint">🐢 戳烏龜：累積當局分數＋維持集氣條！<br>❌ 漏接烏龜：斷 Combo 且重扣生命值（大龜扣最多）！<br>生命值歸零即進入大太陽結算。</div>
         
         <!-- 大太陽結算層 -->
         <div id="sunOverlay">
             <div class="big-sun">🌞</div>
             <div class="sun-title" id="sunEvaluation">太陽顯靈！</div>
+            <div class="sun-score" id="sunFinalScore">本局得分：0 分</div>
             <button class="btn-again" onclick="hideSunAndReset()">🔥 再挑戰一輪</button>
         </div>
     </div>
@@ -213,24 +266,31 @@
     const canvas = document.getElementById('mainCanvas');
     const ctx = canvas.getContext('2d');
     const sunOverlay = document.getElementById('sunOverlay');
-    const burnCountEl = document.getElementById('burnCount');
+    const currentScoreEl = document.getElementById('currentScore');
     const maxComboEl = document.getElementById('maxCombo');
     const comboTextEl = document.getElementById('comboText');
     const sunEvaluationEl = document.getElementById('sunEvaluation');
+    const sunFinalScoreEl = document.getElementById('sunFinalScore');
     const gameHint = document.getElementById('gameHint');
     const startBtn = document.getElementById('startBtn');
+    const barsContainer = document.getElementById('barsContainer');
+    const hpBar = document.getElementById('hpBar');
+    const chargeBar = document.getElementById('chargeBar');
     
     let turtles = [];
     let particles = [];
+    let screenTexts = []; 
     let isPlaying = false;
     let spawnTimer = null;
-    let comboTimer = null;
 
+    // 核心數據
     let currentCombo = 0;
-    let maxCombo = localStorage.getItem('turtleMaxCombo') ? parseInt(localStorage.getItem('turtleMaxCombo')) : 0;
-    let totalBurned = localStorage.getItem('turtleBurnCount_ABC') ? parseInt(localStorage.getItem('turtleBurnCount_ABC')) : 0;
+    let hp = 100;           // 生命值 (100 ~ 0)
+    let roundScore = 0;     // 👉 當局無上限累計分數
     
-    burnCountEl.textContent = totalBurned;
+    let maxCombo = localStorage.getItem('turtleMaxCombo') ? parseInt(localStorage.getItem('turtleMaxCombo')) : 0;
+    
+    currentScoreEl.textContent = roundScore;
     maxComboEl.textContent = maxCombo;
 
     function resizeCanvas() {
@@ -250,14 +310,20 @@
         isPlaying = true;
         startBtn.style.display = 'none';
         gameHint.style.display = 'none';
+        barsContainer.style.display = 'block';
+        
         turtles = [];
         particles = [];
+        screenTexts = [];
         currentCombo = 0;
+        hp = 100;
+        roundScore = 0;
         
-        // 啟動時先給予第一次的寬限倒數
-        clearTimeout(comboTimer);
-        comboTimer = setTimeout(endGameAndShowSun, 1500);
-
+        hpBar.style.width = '100%';
+        chargeBar.style.width = '0%';
+        currentScoreEl.textContent = roundScore;
+        
+        updateComboDisplay(false);
         gameLoopSpawn();
     }
 
@@ -268,30 +334,28 @@
         const w = canvas.width / dpr;
         const h = canvas.height / dpr;
 
-        // 優化後的難度：出生間隔適度放寬，更平滑
-        let spawnInterval = Math.max(350, 1200 - currentCombo * 25); 
+        // 隨分數提高稍微提升出怪速度
+        let spawnInterval = Math.max(260, 1100 - (roundScore * 0.05) - (currentCombo * 8)); 
 
         let turtleType = 'normal';
         let rand = Math.random();
         if (rand < 0.08) turtleType = 'golden'; 
-        else if (rand < 0.20) turtleType = 'giant'; 
+        else if (rand < 0.22) turtleType = 'giant'; 
 
         spawnTurtle(w, h, turtleType);
-
         spawnTimer = setTimeout(gameLoopSpawn, spawnInterval);
     }
 
     function spawnTurtle(w, h, type) {
         let size = Math.random() * 5 + 35; 
-        // 平緩的爬行速度成長
-        let speed = Math.random() * 0.8 + 0.6 + (currentCombo * 0.025); 
+        let speed = Math.random() * 0.7 + 0.6 + (roundScore * 0.0003); // 隨分數增高而爬越快
 
         if (type === 'golden') {
             size = 32; 
-            speed += 0.4; 
+            speed += 0.5; 
         } else if (type === 'giant') {
             size = 62; 
-            speed -= 0.2; 
+            speed -= 0.15; 
         }
 
         turtles.push({
@@ -302,7 +366,7 @@
             speed: speed,
             isBurning: false,
             alpha: 1,
-            burnRate: 0.05, 
+            burnRate: 0.06, 
             fireTick: Math.random() * 100
         });
     }
@@ -310,8 +374,7 @@
     canvas.addEventListener('click', handleCanvasClick);
     canvas.addEventListener('touchstart', function(e) {
         e.preventDefault();
-        const touch = e.touches[0];
-        handleCanvasClick(touch);
+        handleCanvasClick(e.touches[0]);
     });
 
     function handleCanvasClick(e) {
@@ -326,20 +389,27 @@
             if (t.isBurning) continue;
 
             let distance = Math.hypot(clickX - t.x, clickY - t.y);
-            // 稍微加大點擊判定區域，手機更好按
             if (distance < t.size * 0.9) {
                 t.isBurning = true;
-                
                 if (navigator.vibrate) navigator.vibrate(30);
 
                 currentCombo++;
-                updateComboDisplay();
+                updateComboDisplay(true);
 
-                let score = t.type === 'golden' ? 5 : (t.type === 'giant' ? 2 : 1);
-                totalBurned += score;
-                localStorage.setItem('turtleBurnCount_ABC', totalBurned);
-                burnCountEl.textContent = totalBurned;
+                // ❤️ 成功擊中：微幅補血
+                hp = Math.min(100, hp + 1.5);
+                hpBar.style.width = hp + '%';
 
+                // 👉 核心修改：集氣條反映分數累加（滿 500 分滾動一次循環）
+                let scoreGain = t.type === 'golden' ? 100 : (t.type === 'giant' ? 30 : 15);
+                roundScore += scoreGain;
+                currentScoreEl.textContent = roundScore;
+
+                // 讓集氣進度條呈現精緻的動態循環視覺
+                let barPercentage = (roundScore % 500) / 500 * 100;
+                chargeBar.style.width = barPercentage + '%';
+
+                // 特效
                 let pCount = t.type === 'golden' ? 12 : 5;
                 for (let j = 0; j < pCount; j++) {
                     particles.push({
@@ -352,21 +422,24 @@
                         decay: Math.random() * 0.04 + 0.02
                     });
                 }
-
-                // 👉 寬限時間修改為 1500 毫秒 (1.5 秒)
-                clearTimeout(comboTimer);
-                comboTimer = setTimeout(endGameAndShowSun, 1500);
-
                 break; 
             }
         }
     }
 
-    function updateComboDisplay() {
+    function updateComboDisplay(activeAnim = true) {
         comboTextEl.textContent = `${currentCombo} Combo`;
-        comboTextEl.classList.remove('active');
-        void comboTextEl.offsetWidth; 
-        comboTextEl.classList.add('active');
+        if (currentCombo === 0) {
+            comboTextEl.style.opacity = '0';
+            return;
+        }
+        
+        comboTextEl.style.opacity = '1';
+        if (activeAnim) {
+            comboTextEl.classList.remove('active');
+            void comboTextEl.offsetWidth; 
+            comboTextEl.classList.add('active');
+        }
 
         if (currentCombo > maxCombo) {
             maxCombo = currentCombo;
@@ -375,30 +448,71 @@
         }
     }
 
+    // 🔴 漏接烏龜扣血與斷 Combo
+    function handleMissTurtle(type, x, y) {
+        if (!isPlaying) return;
+
+        let penalty = 8; 
+        let label = "漏接 -8% HP";
+
+        if (type === 'golden') {
+            penalty = 12;
+            label = "漏接 -12% HP";
+        } else if (type === 'giant') {
+            penalty = 20; // 巨型大烏龜漏接最傷
+            label = "漏接 -20% HP";
+        }
+
+        hp = Math.max(0, hp - penalty);
+        hpBar.style.width = hp + '%';
+
+        if (currentCombo > 0) {
+            currentCombo = 0;
+            updateComboDisplay(false);
+            label += " (Combo斷)";
+        }
+
+        if (navigator.vibrate) navigator.vibrate([60]);
+
+        screenTexts.push({
+            x: x, y: 40, text: label, alpha: 1, color: '#ff1744'
+        });
+
+        if (hp <= 0) {
+            endGameAndShowSun();
+        }
+    }
+
     function endGameAndShowSun() {
         isPlaying = false;
         clearTimeout(spawnTimer);
         comboTextEl.classList.remove('active');
 
-        // 重新設計門檻，更有成就感
-        if (currentCombo >= 40) {
-            sunEvaluationEl.textContent = `🔥 狂暴大晴天！(Combo ${currentCombo})`;
-        } else if (currentCombo >= 20) {
-            sunEvaluationEl.textContent = `☀️ 絕對是個大晴天！(Combo ${currentCombo})`;
+        // 結算評價與分數看板
+        sunFinalScoreEl.textContent = `本局累計得分：${roundScore} 分`;
+
+        if (roundScore >= 800) {
+            sunEvaluationEl.textContent = `🔥 狂暴大晴天！你是超級晴天大師！`;
+        } else if (roundScore >= 400) {
+            sunEvaluationEl.textContent = `☀️ 絕對是個大晴天！集氣非常充沛！`;
+        } else if (roundScore >= 150) {
+            sunEvaluationEl.textContent = `🌤️ 太陽公公露臉囉！好天氣在路上了！`;
         } else {
-            sunEvaluationEl.textContent = `🌤️ 太陽公公露臉囉！(Combo ${currentCombo})`;
+            sunEvaluationEl.textContent = `☁️ 陰天努力中！再燒一輪試試看！`;
         }
 
         sunOverlay.classList.add('show');
-        if (navigator.vibrate) navigator.vibrate([100, 50, 100]);
+        if (navigator.vibrate) navigator.vibrate([150, 80, 150]);
     }
 
     function hideSunAndReset() {
         sunOverlay.classList.remove('show');
         turtles = [];
         particles = [];
+        screenTexts = [];
         currentCombo = 0;
         isPlaying = false;
+        barsContainer.style.display = 'none';
         startBtn.style.display = 'block';
         gameHint.style.display = 'block';
     }
@@ -414,7 +528,8 @@
 
             if (!t.isBurning) {
                 t.y -= t.speed;
-                if (t.y < -50) {
+                if (t.y < -t.size) {
+                    handleMissTurtle(t.type, t.x, t.y);
                     turtles.splice(i, 1);
                     continue;
                 }
@@ -461,6 +576,25 @@
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
             ctx.fillText(p.emoji, p.x, p.y);
+            ctx.restore();
+        }
+
+        for (let i = screenTexts.length - 1; i >= 0; i--) {
+            let st = screenTexts[i];
+            st.y += 0.5;
+            st.alpha -= 0.02;
+
+            if (st.alpha <= 0) {
+                screenTexts.splice(i, 1);
+                continue;
+            }
+
+            ctx.save();
+            ctx.globalAlpha = st.alpha;
+            ctx.fillStyle = st.color;
+            ctx.font = 'bold 15px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText(st.text, st.x, st.y);
             ctx.restore();
         }
 
