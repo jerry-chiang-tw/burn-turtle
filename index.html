@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, shrink-to-fit=no">
+    <title>ABC-MART x PALLADIUM | 步入山林 夏季野行 祈願晴天</title>
+    <style>
+        :root {
+            --primary-blue: #a3d2f7;
+            --btn-color: #e65100;
+        }
+        * {
+            box-sizing: border-box;
+            /* 防止手機長按彈出選單或藍色選取框 */
+            -webkit-touch-callout: none;
+            -webkit-user-select: none;
+            user-select: none;
+        }
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: var(--primary-blue);
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, 'PingFang TC', 'Microsoft JhengHei', sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            height: 100vh;
+            height: -webkit-fill-available; /* 修正 iOS Safari 工具列高度問題 */
+            overflow: hidden;
+        }
+        /* 看板區 - 手機版微調字型與間距 */
+        .info-board {
+            background: rgba(255, 255, 255, 0.9);
+            border-radius: 16px;
+            padding: 15px;
+            margin: 12px auto 8px auto;
+            width: 90%;
+            max-width: 450px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            text-align: center;
+            backdrop-filter: blur(4px);
+        }
+        .info-board h1 {
+            font-size: 1.3rem;
+            color: #333;
+            margin: 0 0 6px 0;
+        }
+        .info-board p {
+            margin: 4px 0;
+            color: #555;
+            font-size: 1rem;
+        }
+        /* 累積計數器 */
+        .counter-box {
+            font-size: 0.95rem;
+            color: #e65100;
+            font-weight: bold;
+            margin-top: 6px;
+            background: rgba(230, 81, 0, 0.1);
+            padding: 6px 14px;
+            border-radius: 20px;
+            display: inline-block;
+        }
+        /* 按鈕區 - 手機友善尺寸 */
+        .btn-container {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 12px;
+            width: 90%;
+            max-width: 450px;
+            z-index: 10;
+        }
+        button {
+            padding: 14px 20px;
+            font-size: 1.1rem;
+            font-weight: bold;
+            border: none;
+            border-radius: 28px;
+            cursor: pointer;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+            /* 解決行動裝置點擊延遲與灰框 */
+            touch-action: manipulation;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .btn-burn {
+            background-color: var(--btn-color);
+            color: white;
+            flex: 2; /* 讓主要按鈕大一點 */
+        }
+        .btn-clear {
+            background-color: #ffffff;
+            color: #666;
+            flex: 1;
+            font-size: 0.95rem;
+        }
+        /* 手機按壓視覺反饋 */
+        button:active {
+            transform: scale(0.96);
+            filter: brightness(0.9);
+        }
+        button:disabled {
+            background-color: #bbbbbb;
+            color: #888888;
+            transform: none;
+        }
+        /* 畫布容器 - 自動填滿手機剩餘空間 */
+        #canvasContainer {
+            position: relative;
+            width: 100vw;
+            flex: 1;
+            background: linear-gradient(to bottom, #a3d2f7 0%, #cbe3f7 100%);
+            border-radius: 24px 24px 0 0;
+            box-shadow: 0 -4px 12px rgba(0,0,0,0.05);
+            overflow: hidden;
+        }
+        canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+        }
+        /* 大太陽顯靈覆蓋層 */
+        #sunOverlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(255, 255, 255, 0.65);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.4s ease-in-out;
+            z-index: 5;
+        }
+        #sunOverlay.show {
+            opacity: 1;
+            pointer-events: auto;
+        }
+        .big-sun {
+            font-size: 9rem; /* 稍微縮小以防小螢幕手機爆框 */
+            animation: sunPulse 3s infinite ease-in-out;
+        }
+        .btn-again {
+            background-color: #f57c00;
+            color: white;
+            padding: 16px 36px;
+            font-size: 1.2rem;
+            margin-top: 30px;
+            border-radius: 30px;
+            box-shadow: 0 6px 12px rgba(0,0,0,0.2);
+            width: 70%;
+            max-width: 280px;
+        }
+        @keyframes sunPulse {
+            0% { transform: scale(1); filter: drop-shadow(0 0 20px #ffb300); }
+            50% { transform: scale(1.08); filter: drop-shadow(0 0 35px #ff6f00); }
+            100% { transform: scale(1); filter: drop-shadow(0 0 20px #ffb300); }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="info-board">
+        <h1>☀️ 步入山林 夏季野行 ☀️</h1>
+        <p><strong>時間：</strong>2026 / 06 / 12</p>
+        <p><strong>地點：</strong>劍潭山親山步道</p>
+        <div class="counter-box">🔥 我已貢獻祈願：<span id="burnCount">0</span> 次</div>
+    </div>
+
+    <div class="btn-container">
+        <button id="triggerBurnBtn" class="btn-burn" onclick="startBurningProcess()">🔥 開始燒烏龜</button>
+        <button class="btn-clear" onclick="resetAll()">🧹 重置</button>
+    </div>
+
+    <div id="canvasContainer">
+        <canvas id="mainCanvas"></canvas>
+        
+        <div id="sunOverlay">
+            <div class="big-sun">🌞</div>
+            <button class="btn-again" onclick="hideSunAndReset()">🔥 再燒一次烏龜</button>
+        </div>
+    </div>
+
+<script>
+    const canvas = document.getElementById('mainCanvas');
+    const ctx = canvas.getContext('2d');
+    const sunOverlay = document.getElementById('sunOverlay');
+    const burnCountEl = document.getElementById('burnCount');
+    
+    let turtles = [];
+    let particles = [];
+    let isBurning = false;
+
+    let totalBurned = localStorage.getItem('turtleBurnCount_ABC') ? parseInt(localStorage.getItem('turtleBurnCount_ABC')) : 0;
+    burnCountEl.textContent = totalBurned;
+
+    // 自動適應手機視窗與高解析度螢幕 (Retina)
+    function resizeCanvas() {
+        const container = document.getElementById('canvasContainer');
+        const dpr = window.devicePixelRatio || 1;
+        canvas.width = container.clientWidth * dpr;
+        canvas.height = container.clientHeight * dpr;
+        ctx.scale(dpr, dpr);
+        canvas.style.width = container.clientWidth + 'px';
+        canvas.style.height = container.clientHeight + 'px';
+    }
+    window.addEventListener('resize', resizeCanvas);
+    window.addEventListener('orientationchange', () => setTimeout(resizeCanvas, 200));
+    resizeCanvas();
+
+    function startBurningProcess() {
+        if (isBurning) return; 
+        isBurning = true;
+        document.getElementById('triggerBurnBtn').disabled = true;
+
+        // 手機輕微震動反饋 (Android 支援)
+        if (navigator.vibrate) navigator.vibrate(50);
+
+        let count = 0;
+        const totalTurtles = 35;
+        
+        // 隨手機螢幕大小微調產生範圍
+        const viewWidth = canvas.width
