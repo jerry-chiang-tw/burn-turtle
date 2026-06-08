@@ -58,7 +58,7 @@
             border-radius: 20px;
         }
 
-        /* 浮動 Combo 顯示文字 */
+        /* Combo 顯示文字 */
         #comboText {
             position: absolute;
             right: 15px;
@@ -88,7 +88,7 @@
             z-index: 10;
         }
         button {
-            padding: 14px 20px;
+            padding: 12px 20px;
             font-size: 1.1rem;
             font-weight: bold;
             border: none;
@@ -96,17 +96,16 @@
             box-shadow: 0 4px 8px rgba(0,0,0,0.15);
             touch-action: manipulation;
             -webkit-tap-highlight-color: transparent;
+            width: 100%;
         }
-        .btn-burn {
-            background: linear-gradient(135deg, #ff9100 0%, #e65100 100%);
+        .btn-start {
+            background: linear-gradient(135deg, #4caf50 0%, #2e7d32 100%);
             color: white;
-            flex: 2;
         }
-        .btn-clear { background-color: #ffffff; color: #888; flex: 1; font-size: 0.9rem; }
+        .btn-clear { background-color: #ffffff; color: #888; width: 30%; font-size: 0.9rem; display: none;}
         button:active { transform: scale(0.95); }
-        button:disabled { background: #ccc; color: #888; }
 
-        /* 畫布 */
+        /* 畫布容器 */
         #canvasContainer {
             position: relative;
             width: 100vw;
@@ -118,11 +117,25 @@
         }
         canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; }
 
-        /* 大太陽覆蓋層 */
+        /* 提示字眼 */
+        #gameHint {
+            position: absolute;
+            top: 45%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 1.2rem;
+            font-weight: bold;
+            color: #555;
+            pointer-events: none;
+            text-align: center;
+            line-height: 1.6;
+        }
+
+        /* 大太陽結算層 */
         #sunOverlay {
             position: absolute;
             top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(255, 255, 255, 0.7);
+            background: rgba(255, 255, 255, 0.75);
             display: flex;
             flex-direction: column;
             justify-content: center;
@@ -135,7 +148,6 @@
         #sunOverlay.show { opacity: 1; pointer-events: auto; }
         .big-sun { font-size: 8.5rem; animation: sunPulse 3s infinite ease-in-out; }
         
-        /* 結算評價文字 */
         .sun-title {
             font-size: 1.5rem;
             font-weight: bold;
@@ -156,7 +168,6 @@
             max-width: 280px;
         }
 
-        /* 動畫效果 */
         @keyframes comboPop {
             0% { transform: scale(0.8) rotate(15deg); }
             50% { transform: scale(1.3) rotate(20deg); }
@@ -177,26 +188,25 @@
         <p><strong>時間：</strong>2026 / 06 / 12 | <strong>地點：</strong>劍潭山步道</p>
         
         <div class="stats-container">
-            <div class="counter-box">🔥 已集氣：<span id="burnCount">0</span> 次</div>
+            <div class="counter-box">🔥 總祈願分數：<span id="burnCount">0</span></div>
             <div class="counter-box" style="color: #d84315; background: rgba(216,67,21,0.1);">⚡ 最高 Combo：<span id="maxCombo">0</span></div>
         </div>
-        <!-- Combo 飄字 -->
         <div id="comboText">0 Combo</div>
     </div>
 
     <div class="btn-container">
-        <button id="triggerBurnBtn" class="btn-burn" onclick="userClickBurn()">🔥 狂點燒烏龜！</button>
-        <button class="btn-clear" onclick="resetAll()">🧹 重置</button>
+        <button id="startBtn" class="btn-start" onclick="startGame()">▶️ 開始祭典（抓烏龜）</button>
     </div>
 
     <div id="canvasContainer">
         <canvas id="mainCanvas"></canvas>
+        <div id="gameHint">🐢 點擊爬出來的烏龜將牠點燃！<br>手速慢下來 0.5 秒即結算。</div>
         
         <!-- 大太陽結算層 -->
         <div id="sunOverlay">
             <div class="big-sun">🌞</div>
             <div class="sun-title" id="sunEvaluation">太陽顯靈！</div>
-            <button class="btn-again" onclick="hideSunAndReset()">🔥 再燒一輪</button>
+            <button class="btn-again" onclick="hideSunAndReset()">🔥 再挑戰一輪</button>
         </div>
     </div>
 
@@ -208,13 +218,16 @@
     const maxComboEl = document.getElementById('maxCombo');
     const comboTextEl = document.getElementById('comboText');
     const sunEvaluationEl = document.getElementById('sunEvaluation');
+    const gameHint = document.getElementById('gameHint');
+    const startBtn = document.getElementById('startBtn');
     
     let turtles = [];
     let particles = [];
-    let gameActive = true;
+    let isPlaying = false;
+    let spawnTimer = null;
+    let comboTimer = null;
 
     let currentCombo = 0;
-    let comboTimer = null;
     let maxCombo = localStorage.getItem('turtleMaxCombo') ? parseInt(localStorage.getItem('turtleMaxCombo')) : 0;
     let totalBurned = localStorage.getItem('turtleBurnCount_ABC') ? parseInt(localStorage.getItem('turtleBurnCount_ABC')) : 0;
     
@@ -233,34 +246,131 @@
     window.addEventListener('resize', resizeCanvas);
     resizeCanvas();
 
-    function userClickBurn() {
-        if (!gameActive) return;
+    // 啟動遊戲
+    function startGame() {
+        if (isPlaying) return;
+        isPlaying = true;
+        startBtn.style.display = 'none';
+        gameHint.style.display = 'none';
+        turtles = [];
+        particles = [];
+        currentCombo = 0;
+        
+        // 開始循環生成烏龜
+        gameLoopSpawn();
+    }
 
-        if (navigator.vibrate) navigator.vibrate(30);
-
-        currentCombo++;
-        updateComboDisplay();
-
-        let turtleType = 'normal'; 
-        let rand = Math.random();
-        if (rand < 0.06) { 
-            turtleType = 'golden'; // 6% 閃光金光龜
-        } else if (rand < 0.15) {
-            turtleType = 'giant';  // 9% 巨型大烏龜
-        }
+    // 動態難度生成器
+    function gameLoopSpawn() {
+        if (!isPlaying) return;
 
         const dpr = window.devicePixelRatio || 1;
-        spawnTurtle(canvas.width / dpr, canvas.height / dpr, turtleType);
+        const w = canvas.width / dpr;
+        const h = canvas.height / dpr;
 
-        totalBurned += (turtleType === 'golden' ? 5 : 1); 
-        localStorage.setItem('turtleBurnCount_ABC', totalBurned);
-        burnCountEl.textContent = totalBurned;
+        // 🎯 難度曲線設計：Combo 越高，新烏龜出生的間隔時間越短
+        let spawnInterval = Math.max(250, 1000 - currentCombo * 20); 
 
-        // 👉 修改關鍵：計時器縮短至 500 毫秒 (0.5 秒)
-        clearTimeout(comboTimer);
-        comboTimer = setTimeout(() => {
-            endRoundAndShowSun();
-        }, 500);
+        // 決定烏龜尺寸類型
+        let turtleType = 'normal';
+        let rand = Math.random();
+        if (rand < 0.08) turtleType = 'golden'; // 8% 出現精緻小金龜 (發光特效)
+        else if (rand < 0.20) turtleType = 'giant'; // 12% 出現超級巨嬰龜
+
+        spawnTurtle(w, h, turtleType);
+
+        spawnTimer = setTimeout(gameLoopSpawn, spawnInterval);
+    }
+
+    function spawnTurtle(w, h, type) {
+        let size = Math.random() * 5 + 35; // 正常尺寸
+        let speed = Math.random() * 1.2 + 0.8 + (currentCombo * 0.04); // 🎯 難度曲線：Combo 越高爬越快
+
+        if (type === 'golden') {
+            size = 32; 
+            speed += 0.5; // 金龜速度更快
+        } else if (type === 'giant') {
+            size = 62; 
+            speed -= 0.3; // 大烏龜比較慢
+        }
+
+        // 從畫面底部隨機 X 軸冒出
+        turtles.push({
+            x: Math.random() * (w - size) + size/2,
+            y: h + 10,
+            size: size,
+            type: type,
+            speed: speed,
+            isBurning: false,
+            alpha: 1,
+            burnRate: 0.04, // 被點中後迅速燒完
+            fireTick: Math.random() * 100
+        });
+    }
+
+    // 📱 點擊/觸控畫布判定抓烏龜
+    canvas.addEventListener('click', handleCanvasClick);
+    canvas.addEventListener('touchstart', function(e) {
+        // 阻止預設縮放
+        e.preventDefault();
+        const touch = e.touches[0];
+        handleCanvasClick(touch);
+    });
+
+    function handleCanvasClick(e) {
+        if (!isPlaying) return;
+
+        const rect = canvas.getBoundingClientRect();
+        // 計算出點擊在畫布上的相對座標
+        const clickX = e.clientX - rect.left;
+        const clickY = e.clientY - rect.top;
+
+        let hitAny = false;
+
+        // 從最上層的烏龜開始判定是否被點中
+        for (let i = turtles.length - 1; i >= 0; i--) {
+            let t = turtles[i];
+            if (t.isBurning) continue;
+
+            // 點擊距離判定 (半徑範圍內算點中)
+            let distance = Math.hypot(clickX - t.x, clickY - t.y);
+            if (distance < t.size * 0.75) {
+                t.isBurning = true;
+                hitAny = true;
+                
+                // 觸發反饋
+                if (navigator.vibrate) navigator.vibrate(30);
+
+                currentCombo++;
+                updateComboDisplay();
+
+                // 計算得分
+                let score = t.type === 'golden' ? 5 : (t.type === 'giant' ? 2 : 1);
+                totalBurned += score;
+                localStorage.setItem('turtleBurnCount_ABC', totalBurned);
+                burnCountEl.textContent = totalBurned;
+
+                // 產生燃燒噴發粒子
+                let pCount = t.type === 'golden' ? 12 : 5;
+                for (let j = 0; j < pCount; j++) {
+                    particles.push({
+                        x: t.x, y: t.y,
+                        vx: (Math.random() - 0.5) * 6,
+                        vy: (Math.random() - 0.5) * 6 - 2,
+                        size: Math.random() * 6 + 10,
+                        emoji: t.type === 'golden' ? '✨' : '🔥',
+                        alpha: 1,
+                        decay: Math.random() * 0.04 + 0.02
+                    });
+                }
+
+                // 🎯 只要有點中，就重新刷新 0.5 秒限時
+                clearTimeout(comboTimer);
+                comboTimer = setTimeout(endGameAndShowSun, 500);
+
+                break; // 一次只抓一隻
+            }
+        }
     }
 
     function updateComboDisplay() {
@@ -276,48 +386,15 @@
         }
     }
 
-    function spawnTurtle(w, h, type) {
-        let size = Math.random() * 6 + 25; 
-        let burnRate = Math.random() * 0.006 + 0.005;
-
-        if (type === 'golden') {
-            size = 38;         
-            burnRate = 0.0035; 
-        } else if (type === 'giant') {
-            size = 58;         
-            burnRate = 0.0025; 
-        }
-
-        const x = Math.random() * (w - size) + size/2;
-        const y = h - (Math.random() * (h * 0.65) + size + 35);
-
-        turtles.push({
-            x: x, y: y, size: size, emoji: '🐢', type: type, alpha: 1,
-            burnRate: burnRate, fireTick: Math.random() * 100
-        });
-
-        let pCount = type === 'golden' ? 8 : 3;
-        for (let i = 0; i < pCount; i++) {
-            particles.push({
-                x: x, y: y,
-                vx: (Math.random() - 0.5) * 5,
-                vy: -Math.random() * 4 - 1,
-                size: Math.random() * 8 + 10,
-                emoji: type === 'golden' ? '✨' : '🔥', 
-                alpha: 1,
-                decay: Math.random() * 0.03 + 0.01
-            });
-        }
-    }
-
-    function endRoundAndShowSun() {
-        gameActive = false;
-        document.getElementById('triggerBurnBtn').disabled = true;
+    // 0.5 秒沒續接，大太陽結算
+    function endGameAndShowSun() {
+        isPlaying = false;
+        clearTimeout(spawnTimer);
         comboTextEl.classList.remove('active');
 
-        if (currentCombo >= 30) {
+        if (currentCombo >= 25) {
             sunEvaluationEl.textContent = `🔥 狂暴大晴天！(Combo ${currentCombo})`;
-        } else if (currentCombo >= 15) {
+        } else if (currentCombo >= 10) {
             sunEvaluationEl.textContent = `☀️ 絕對是個大晴天！(Combo ${currentCombo})`;
         } else {
             sunEvaluationEl.textContent = `🌤️ 太陽公公露臉囉！(Combo ${currentCombo})`;
@@ -332,36 +409,38 @@
         turtles = [];
         particles = [];
         currentCombo = 0;
-        gameActive = true;
-        document.getElementById('triggerBurnBtn').disabled = false;
+        isPlaying = false;
+        startBtn.style.display = 'block';
+        gameHint.style.display = 'block';
     }
 
-    function resetAll() {
-        if(confirm("確定要重置所有紀錄嗎？")) {
-            totalBurned = 0;
-            maxCombo = 0;
-            localStorage.setItem('turtleBurnCount_ABC', 0);
-            localStorage.setItem('turtleMaxCombo', 0);
-            burnCountEl.textContent = 0;
-            maxComboEl.textContent = 0;
-            hideSunAndReset();
-        }
-    }
-
+    // --- 繪製核心 ---
     function animate() {
         const dpr = window.devicePixelRatio || 1;
         const w = canvas.width / dpr;
         const h = canvas.height / dpr;
         ctx.clearRect(0, 0, w, h);
 
+        // 處理烏龜移動與渲染
         for (let i = turtles.length - 1; i >= 0; i--) {
             let t = turtles[i];
-            t.alpha -= t.burnRate;
-            t.fireTick++;
 
-            if (t.alpha <= 0) {
-                turtles.splice(i, 1);
-                continue;
+            if (!t.isBurning) {
+                // 沒被點中的烏龜，會一直網畫面上方爬行
+                t.y -= t.speed;
+                
+                // 如果爬出畫面頂部，漏接不扣分，但從陣列移除
+                if (t.y < -50) {
+                    turtles.splice(i, 1);
+                    continue;
+                }
+            } else {
+                // 被點中了，原地迅速淡出燃燒
+                t.alpha -= t.burnRate;
+                if (t.alpha <= 0) {
+                    turtles.splice(i, 1);
+                    continue;
+                }
             }
 
             ctx.save();
@@ -372,20 +451,20 @@
             
             if (t.type === 'golden') {
                 ctx.shadowColor = '#ffd700';
-                ctx.shadowBlur = 20;
+                ctx.shadowBlur = 15;
             }
             
-            ctx.fillText(t.emoji, t.x, t.y);
+            ctx.fillText('🐢', t.x, t.y);
 
-            if (t.alpha > 0.1) {
-                ctx.font = `${t.size * 0.85}px Arial`;
-                let fireX = t.x + Math.sin(t.fireTick * 0.25) * 3;
-                let fireY = t.y - (t.size * 0.35) + Math.cos(t.fireTick * 0.25) * 2;
-                ctx.fillText(t.type === 'golden' ? '💥' : '🔥', fireX, fireY);
+            // 如果正在燃燒，身上疊加爆炸大火
+            if (t.isBurning) {
+                ctx.font = `${t.size * 0.9}px Arial`;
+                ctx.fillText('💥', t.x, t.y - 5);
             }
             ctx.restore();
         }
 
+        // 處理火花粒子
         for (let i = particles.length - 1; i >= 0; i--) {
             let p = particles[i];
             p.x += p.vx; p.y += p.vy; p.alpha -= p.decay;
