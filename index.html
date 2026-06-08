@@ -102,7 +102,6 @@
             background: linear-gradient(135deg, #4caf50 0%, #2e7d32 100%);
             color: white;
         }
-        .btn-clear { background-color: #ffffff; color: #888; width: 30%; font-size: 0.9rem; display: none;}
         button:active { transform: scale(0.95); }
 
         /* 畫布容器 */
@@ -200,7 +199,7 @@
 
     <div id="canvasContainer">
         <canvas id="mainCanvas"></canvas>
-        <div id="gameHint">🐢 點擊爬出來的烏龜將牠點燃！<br>手速慢下來 0.5 秒即結算。</div>
+        <div id="gameHint">🐢 點擊爬出來的烏龜將牠點燃！<br>手速停下超過 1.5 秒即結算。</div>
         
         <!-- 大太陽結算層 -->
         <div id="sunOverlay">
@@ -246,7 +245,6 @@
     window.addEventListener('resize', resizeCanvas);
     resizeCanvas();
 
-    // 啟動遊戲
     function startGame() {
         if (isPlaying) return;
         isPlaying = true;
@@ -256,11 +254,13 @@
         particles = [];
         currentCombo = 0;
         
-        // 開始循環生成烏龜
+        // 啟動時先給予第一次的寬限倒數
+        clearTimeout(comboTimer);
+        comboTimer = setTimeout(endGameAndShowSun, 1500);
+
         gameLoopSpawn();
     }
 
-    // 動態難度生成器
     function gameLoopSpawn() {
         if (!isPlaying) return;
 
@@ -268,14 +268,13 @@
         const w = canvas.width / dpr;
         const h = canvas.height / dpr;
 
-        // 🎯 難度曲線設計：Combo 越高，新烏龜出生的間隔時間越短
-        let spawnInterval = Math.max(250, 1000 - currentCombo * 20); 
+        // 優化後的難度：出生間隔適度放寬，更平滑
+        let spawnInterval = Math.max(350, 1200 - currentCombo * 25); 
 
-        // 決定烏龜尺寸類型
         let turtleType = 'normal';
         let rand = Math.random();
-        if (rand < 0.08) turtleType = 'golden'; // 8% 出現精緻小金龜 (發光特效)
-        else if (rand < 0.20) turtleType = 'giant'; // 12% 出現超級巨嬰龜
+        if (rand < 0.08) turtleType = 'golden'; 
+        else if (rand < 0.20) turtleType = 'giant'; 
 
         spawnTurtle(w, h, turtleType);
 
@@ -283,18 +282,18 @@
     }
 
     function spawnTurtle(w, h, type) {
-        let size = Math.random() * 5 + 35; // 正常尺寸
-        let speed = Math.random() * 1.2 + 0.8 + (currentCombo * 0.04); // 🎯 難度曲線：Combo 越高爬越快
+        let size = Math.random() * 5 + 35; 
+        // 平緩的爬行速度成長
+        let speed = Math.random() * 0.8 + 0.6 + (currentCombo * 0.025); 
 
         if (type === 'golden') {
             size = 32; 
-            speed += 0.5; // 金龜速度更快
+            speed += 0.4; 
         } else if (type === 'giant') {
             size = 62; 
-            speed -= 0.3; // 大烏龜比較慢
+            speed -= 0.2; 
         }
 
-        // 從畫面底部隨機 X 軸冒出
         turtles.push({
             x: Math.random() * (w - size) + size/2,
             y: h + 10,
@@ -303,15 +302,13 @@
             speed: speed,
             isBurning: false,
             alpha: 1,
-            burnRate: 0.04, // 被點中後迅速燒完
+            burnRate: 0.05, 
             fireTick: Math.random() * 100
         });
     }
 
-    // 📱 點擊/觸控畫布判定抓烏龜
     canvas.addEventListener('click', handleCanvasClick);
     canvas.addEventListener('touchstart', function(e) {
-        // 阻止預設縮放
         e.preventDefault();
         const touch = e.touches[0];
         handleCanvasClick(touch);
@@ -321,36 +318,28 @@
         if (!isPlaying) return;
 
         const rect = canvas.getBoundingClientRect();
-        // 計算出點擊在畫布上的相對座標
         const clickX = e.clientX - rect.left;
         const clickY = e.clientY - rect.top;
 
-        let hitAny = false;
-
-        // 從最上層的烏龜開始判定是否被點中
         for (let i = turtles.length - 1; i >= 0; i--) {
             let t = turtles[i];
             if (t.isBurning) continue;
 
-            // 點擊距離判定 (半徑範圍內算點中)
             let distance = Math.hypot(clickX - t.x, clickY - t.y);
-            if (distance < t.size * 0.75) {
+            // 稍微加大點擊判定區域，手機更好按
+            if (distance < t.size * 0.9) {
                 t.isBurning = true;
-                hitAny = true;
                 
-                // 觸發反饋
                 if (navigator.vibrate) navigator.vibrate(30);
 
                 currentCombo++;
                 updateComboDisplay();
 
-                // 計算得分
                 let score = t.type === 'golden' ? 5 : (t.type === 'giant' ? 2 : 1);
                 totalBurned += score;
                 localStorage.setItem('turtleBurnCount_ABC', totalBurned);
                 burnCountEl.textContent = totalBurned;
 
-                // 產生燃燒噴發粒子
                 let pCount = t.type === 'golden' ? 12 : 5;
                 for (let j = 0; j < pCount; j++) {
                     particles.push({
@@ -364,11 +353,11 @@
                     });
                 }
 
-                // 🎯 只要有點中，就重新刷新 0.5 秒限時
+                // 👉 寬限時間修改為 1500 毫秒 (1.5 秒)
                 clearTimeout(comboTimer);
-                comboTimer = setTimeout(endGameAndShowSun, 500);
+                comboTimer = setTimeout(endGameAndShowSun, 1500);
 
-                break; // 一次只抓一隻
+                break; 
             }
         }
     }
@@ -386,15 +375,15 @@
         }
     }
 
-    // 0.5 秒沒續接，大太陽結算
     function endGameAndShowSun() {
         isPlaying = false;
         clearTimeout(spawnTimer);
         comboTextEl.classList.remove('active');
 
-        if (currentCombo >= 25) {
+        // 重新設計門檻，更有成就感
+        if (currentCombo >= 40) {
             sunEvaluationEl.textContent = `🔥 狂暴大晴天！(Combo ${currentCombo})`;
-        } else if (currentCombo >= 10) {
+        } else if (currentCombo >= 20) {
             sunEvaluationEl.textContent = `☀️ 絕對是個大晴天！(Combo ${currentCombo})`;
         } else {
             sunEvaluationEl.textContent = `🌤️ 太陽公公露臉囉！(Combo ${currentCombo})`;
@@ -414,28 +403,22 @@
         gameHint.style.display = 'block';
     }
 
-    // --- 繪製核心 ---
     function animate() {
         const dpr = window.devicePixelRatio || 1;
         const w = canvas.width / dpr;
         const h = canvas.height / dpr;
         ctx.clearRect(0, 0, w, h);
 
-        // 處理烏龜移動與渲染
         for (let i = turtles.length - 1; i >= 0; i--) {
             let t = turtles[i];
 
             if (!t.isBurning) {
-                // 沒被點中的烏龜，會一直網畫面上方爬行
                 t.y -= t.speed;
-                
-                // 如果爬出畫面頂部，漏接不扣分，但從陣列移除
                 if (t.y < -50) {
                     turtles.splice(i, 1);
                     continue;
                 }
             } else {
-                // 被點中了，原地迅速淡出燃燒
                 t.alpha -= t.burnRate;
                 if (t.alpha <= 0) {
                     turtles.splice(i, 1);
@@ -456,7 +439,6 @@
             
             ctx.fillText('🐢', t.x, t.y);
 
-            // 如果正在燃燒，身上疊加爆炸大火
             if (t.isBurning) {
                 ctx.font = `${t.size * 0.9}px Arial`;
                 ctx.fillText('💥', t.x, t.y - 5);
@@ -464,7 +446,6 @@
             ctx.restore();
         }
 
-        // 處理火花粒子
         for (let i = particles.length - 1; i >= 0; i--) {
             let p = particles[i];
             p.x += p.vx; p.y += p.vy; p.alpha -= p.decay;
