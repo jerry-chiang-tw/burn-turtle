@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, shrink-to-fit=no">
-    <title>ABC-MART x PALLADIUM | 步入山林 夏季野行 祈願晴天</title>
+    <title>STAFF ON MOVE | 步入山林 夏季野行 祈願晴天</title>
     <style>
         :root {
             --primary-blue: #a3d2f7;
@@ -172,13 +172,16 @@
 <body>
 
     <div class="info-board">
-        <h1>☀️ 步入山林 夏季野行 ☀️</h1>
+        <!-- 標題已更新 -->
+        <h1>☀️ STAFF ON MOVE ☀️</h1>
+        <p><strong>活動：</strong>步入山林 夏季野行</p>
         <p><strong>時間：</strong>2026 / 06 / 12 | <strong>地點：</strong>劍潭山步道</p>
         
         <div class="stats-container">
             <div class="counter-box">🔥 已集氣：<span id="burnCount">0</span> 次</div>
             <div class="counter-box" style="color: #d84315; background: rgba(216,67,21,0.1);">⚡ 最高 Combo：<span id="maxCombo">0</span></div>
         </div>
+        <!-- Combo 飄字 -->
         <div id="comboText">0 Combo</div>
     </div>
 
@@ -190,6 +193,7 @@
     <div id="canvasContainer">
         <canvas id="mainCanvas"></canvas>
         
+        <!-- 大太陽結算層 -->
         <div id="sunOverlay">
             <div class="big-sun">🌞</div>
             <div class="sun-title" id="sunEvaluation">太陽顯靈！</div>
@@ -210,7 +214,6 @@
     let particles = [];
     let gameActive = true;
 
-    // Combo 核心變數
     let currentCombo = 0;
     let comboTimer = null;
     let maxCombo = localStorage.getItem('turtleMaxCombo') ? parseInt(localStorage.getItem('turtleMaxCombo')) : 0;
@@ -231,46 +234,39 @@
     window.addEventListener('resize', resizeCanvas);
     resizeCanvas();
 
-    // 👉 核心修改：改成「手動瘋狂連點」模式！
     function userClickBurn() {
         if (!gameActive) return;
 
-        // 觸發手機震動
         if (navigator.vibrate) navigator.vibrate(30);
 
-        // 處理 Combo 計數
         currentCombo++;
         updateComboDisplay();
 
-        // 隨機判定是不是「彩蛋特殊烏龜」
         let turtleType = 'normal'; 
         let rand = Math.random();
         if (rand < 0.05) { 
-            turtleType = 'golden'; // 5% 幾率出現金烏龜
+            turtleType = 'golden'; 
         } else if (rand < 0.12) {
-            turtleType = 'giant';  // 7% 幾率出現巨型烏龜
+            turtleType = 'giant';  
         }
 
         const dpr = window.devicePixelRatio || 1;
         spawnTurtle(canvas.width / dpr, canvas.height / dpr, turtleType);
 
-        // 累加分數
         totalBurned += (turtleType === 'golden' ? 5 : 1); 
         localStorage.setItem('turtleBurnCount_ABC', totalBurned);
         burnCountEl.textContent = totalBurned;
 
-        // 重置 Combo 倒數計時器：如果 1.5 秒內沒繼續點，就結算跳出大太陽！
         clearTimeout(comboTimer);
         comboTimer = setTimeout(() => {
             endRoundAndShowSun();
         }, 1500);
     }
 
-    // 更新 Combo 浮動文字
     function updateComboDisplay() {
         comboTextEl.textContent = `${currentCombo} Combo`;
         comboTextEl.classList.remove('active');
-        void comboTextEl.offsetWidth; // 觸發 CSS 重繪
+        void comboTextEl.offsetWidth; 
         comboTextEl.classList.add('active');
 
         if (currentCombo > maxCombo) {
@@ -280,7 +276,6 @@
         }
     }
 
-    // 生成烏龜（含彩蛋規格）
     function spawnTurtle(w, h, type) {
         let size = Math.random() * 8 + 25;
         let emoji = '🐢';
@@ -288,8 +283,8 @@
 
         if (type === 'golden') {
             size = 45;
-            emoji = '👑'; // 金色皇冠神龜代用
-            burnRate = 0.003; // 燒比較慢
+            emoji = '👑'; 
+            burnRate = 0.003; 
         } else if (type === 'giant') {
             size = 60;
             burnRate = 0.004;
@@ -303,7 +298,6 @@
             burnRate: burnRate, fireTick: Math.random() * 100
         });
 
-        // 噴發相對應的火花
         let pCount = type === 'golden' ? 8 : 3;
         for (let i = 0; i < pCount; i++) {
             particles.push({
@@ -318,13 +312,11 @@
         }
     }
 
-    // 結束這輪，顯示大太陽與評價
     function endRoundAndShowSun() {
         gameActive = false;
         document.getElementById('triggerBurnBtn').disabled = true;
         comboTextEl.classList.remove('active');
 
-        // 根據 Combo 數量給予不同評價
         if (currentCombo >= 40) {
             sunEvaluationEl.textContent = `🔥 狂暴大晴天！(Combo ${currentCombo})`;
         } else if (currentCombo >= 20) {
@@ -358,14 +350,12 @@
         }
     }
 
-    // --- 繪製核心 ---
     function animate() {
         const dpr = window.devicePixelRatio || 1;
         const w = canvas.width / dpr;
         const h = canvas.height / dpr;
         ctx.clearRect(0, 0, w, h);
 
-        // 烏龜
         for (let i = turtles.length - 1; i >= 0; i--) {
             let t = turtles[i];
             t.alpha -= t.burnRate;
@@ -382,7 +372,6 @@
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
             
-            // 如果是金烏龜，加個特殊濾鏡光暈
             if (t.type === 'golden') {
                 ctx.shadowColor = '#ffd700';
                 ctx.shadowBlur = 15;
@@ -390,7 +379,6 @@
             
             ctx.fillText(t.emoji, t.x, t.y);
 
-            // 火焰
             if (t.alpha > 0.1) {
                 ctx.font = `${t.size * 0.8}px Arial`;
                 let fireX = t.x + Math.sin(t.fireTick * 0.25) * 3;
@@ -400,7 +388,6 @@
             ctx.restore();
         }
 
-        // 粒子
         for (let i = particles.length - 1; i >= 0; i--) {
             let p = particles[i];
             p.x += p.vx; p.y += p.vy; p.alpha -= p.decay;
