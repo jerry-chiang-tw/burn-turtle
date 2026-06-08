@@ -54,7 +54,7 @@
             color: #e65100;
             font-weight: bold;
             background: rgba(230, 81, 0, 0.1);
-            padding: 5px 10px;
+            padding: 5px 12px;
             border-radius: 20px;
         }
 
@@ -63,7 +63,7 @@
             width: 90%;
             max-width: 450px;
             margin: 5px auto 10px auto;
-            display: none; /* 遊戲開始才顯示 */
+            display: none; 
         }
         .bar-wrapper {
             margin-bottom: 6px;
@@ -86,10 +86,10 @@
         .bar-fill {
             height: 100%;
             width: 0%;
-            transition: width 0.1s ease-out;
+            transition: width 0.08s ease-out;
         }
         #hpBar { background: linear-gradient(to right, #ff1744, #ff5252); width: 100%; }
-        #chargeBar { background: linear-gradient(to right, #ff9100, #ffea00); width: 0%; }
+        #chargeBar { background: linear-gradient(to right, #00e676, #b2ff59); width: 0%; }
 
         /* Combo 顯示文字 */
         #comboText {
@@ -181,17 +181,21 @@
         .big-sun { font-size: 8.5rem; animation: sunPulse 3s infinite ease-in-out; }
         
         .sun-title {
-            font-size: 1.5rem;
+            font-size: 1.4rem;
             font-weight: bold;
-            color: #d84315;
-            margin-top: 10px;
+            color: #e65100;
+            margin-top: 5px;
             text-shadow: 1px 1px 0 #fff;
         }
         .sun-score {
-            font-size: 1.2rem;
-            font-weight: bold;
+            font-size: 1.6rem;
+            font-weight: 900;
             color: #333;
-            margin-top: 5px;
+            margin-top: 8px;
+            background: rgba(255, 255, 255, 0.8);
+            padding: 5px 15px;
+            border-radius: 15px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
         }
 
         .btn-again {
@@ -226,39 +230,37 @@
         <p><strong>時間：</strong>2026 / 06 / 12 | <strong>地點：</strong>劍潭山步道</p>
         
         <div class="stats-container">
-            <!-- 這裡顯示當局的實時總累計分數 -->
-            <div class="counter-box">☀️ 當局分數：<span id="currentScore">0</span></div>
-            <div class="counter-box" style="color: #d84315; background: rgba(216,67,21,0.1);">⚡ 最高 Combo：<span id="maxCombo">0</span></div>
+            <div class="counter-box" style="color: #2e7d32; background: rgba(46,125,50,0.1);">🌟 等級: <span id="currentLevel">LV.0</span></div>
+            <div class="counter-box" id="titleBox" style="color: #333; background: #fff; box-shadow: 0 2px 5px rgba(0,0,0,0.05);">菜鳥尋龜人 🐢</div>
+            <div class="counter-box" style="color: #d84315; background: rgba(216,67,21,0.1);">⚡ 最高Combo: <span id="maxCombo">0</span></div>
         </div>
         <div id="comboText">0 Combo</div>
     </div>
 
-    <!-- 雙條顯示區 -->
     <div class="bars-container" id="barsContainer">
         <div class="bar-wrapper">
             <span>❤️ 生命值:</span>
             <div class="bar-bg"><div class="bar-fill" id="hpBar"></div></div>
         </div>
         <div class="bar-wrapper">
-            <span>🔥 集氣度:</span>
+            <span>🟢 經驗條:</span>
             <div class="bar-bg"><div class="bar-fill" id="chargeBar"></div></div>
         </div>
     </div>
 
     <div class="btn-container">
-        <button id="startBtn" class="btn-start" onclick="startGame()">▶️ 開始祭典（抓烏龜）</button>
+        <button id="startBtn" class="btn-start" onclick="startGame()">▶️ 開始晴天修仙祭典</button>
     </div>
 
     <div id="canvasContainer">
         <canvas id="mainCanvas"></canvas>
-        <div id="gameHint">🐢 戳烏龜：累積當局分數＋維持集氣條！<br>❌ 漏接烏龜：斷 Combo 且重扣生命值（大龜扣最多）！<br>生命值歸零即進入大太陽結算。</div>
+        <div id="gameHint">🐢 戳烏龜：獲得經驗值（EXP）以太全力升級！<br>❌ 本局無法回血！血條扣空即結束！<br>漏接烏龜扣血且斷 Combo，看你能修煉到哪種烏龜境界！</div>
         
-        <!-- 大太陽結算層 -->
         <div id="sunOverlay">
             <div class="big-sun">🌞</div>
-            <div class="sun-title" id="sunEvaluation">太陽顯靈！</div>
-            <div class="sun-score" id="sunFinalScore">本局得分：0 分</div>
-            <button class="btn-again" onclick="hideSunAndReset()">🔥 再挑戰一輪</button>
+            <div class="sun-title" id="sunEvaluation">境界稱號</div>
+            <div class="sun-score" id="sunFinalScore">最終境界：LV.0</div>
+            <button class="btn-again" onclick="hideSunAndReset()">🔥 重新渡劫修煉</button>
         </div>
     </div>
 
@@ -266,7 +268,8 @@
     const canvas = document.getElementById('mainCanvas');
     const ctx = canvas.getContext('2d');
     const sunOverlay = document.getElementById('sunOverlay');
-    const currentScoreEl = document.getElementById('currentScore');
+    const currentLevelEl = document.getElementById('currentLevel');
+    const titleBox = document.getElementById('titleBox');
     const maxComboEl = document.getElementById('maxCombo');
     const comboTextEl = document.getElementById('comboText');
     const sunEvaluationEl = document.getElementById('sunEvaluation');
@@ -283,15 +286,25 @@
     let isPlaying = false;
     let spawnTimer = null;
 
-    // 核心數據
     let currentCombo = 0;
-    let hp = 100;           // 生命值 (100 ~ 0)
-    let roundScore = 0;     // 👉 當局無上限累計分數
-    
+    let hp = 100;           
+    let level = 0;          
+    let currentExp = 0;     
+    const expNeededPerLevel = 200; 
+
     let maxCombo = localStorage.getItem('turtleMaxCombo') ? parseInt(localStorage.getItem('turtleMaxCombo')) : 0;
-    
-    currentScoreEl.textContent = roundScore;
     maxComboEl.textContent = maxCombo;
+
+    // 👉 核心修改：純烏龜/龜系修仙境界稱號
+    function getTitle(lv) {
+        if (lv === 99) return "天道大晴神龜 🌌";
+        if (lv >= 85) return "狂暴烈陽聖龜 👑";
+        if (lv >= 70) return "破雲靈龜真君 ☀️";
+        if (lv >= 50) return "掌火赤龜仙 🌤️";
+        if (lv >= 30) return "九天玄龜使 🔥";
+        if (lv >= 10) return "執火炙龜甲 🕯️";
+        return "菜鳥尋龜人 🐢";
+    }
 
     function resizeCanvas() {
         const container = document.getElementById('canvasContainer');
@@ -317,11 +330,13 @@
         screenTexts = [];
         currentCombo = 0;
         hp = 100;
-        roundScore = 0;
+        level = 0;
+        currentExp = 0;
         
         hpBar.style.width = '100%';
         chargeBar.style.width = '0%';
-        currentScoreEl.textContent = roundScore;
+        currentLevelEl.textContent = "LV." + level;
+        titleBox.textContent = getTitle(level);
         
         updateComboDisplay(false);
         gameLoopSpawn();
@@ -334,8 +349,7 @@
         const w = canvas.width / dpr;
         const h = canvas.height / dpr;
 
-        // 隨分數提高稍微提升出怪速度
-        let spawnInterval = Math.max(260, 1100 - (roundScore * 0.05) - (currentCombo * 8)); 
+        let spawnInterval = Math.max(220, 1100 - (level * 12) - (currentCombo * 6)); 
 
         let turtleType = 'normal';
         let rand = Math.random();
@@ -348,7 +362,7 @@
 
     function spawnTurtle(w, h, type) {
         let size = Math.random() * 5 + 35; 
-        let speed = Math.random() * 0.7 + 0.6 + (roundScore * 0.0003); // 隨分數增高而爬越快
+        let speed = Math.random() * 0.7 + 0.6 + (level * 0.025); 
 
         if (type === 'golden') {
             size = 32; 
@@ -396,20 +410,32 @@
                 currentCombo++;
                 updateComboDisplay(true);
 
-                // ❤️ 成功擊中：微幅補血
-                hp = Math.min(100, hp + 1.5);
-                hpBar.style.width = hp + '%';
+                // 經驗值機制
+                let expGain = t.type === 'golden' ? 100 : (t.type === 'giant' ? 30 : 15);
+                
+                if (level < 99) {
+                    currentExp += expGain;
+                    
+                    while (currentExp >= expNeededPerLevel && level < 99) {
+                        currentExp -= expNeededPerLevel;
+                        level++;
+                        
+                        screenTexts.push({
+                            x: t.x, y: t.y - 20, text: "🐢 境界突破！LV." + level, alpha: 1.5, color: '#00e676'
+                        });
+                        
+                        if (navigator.vibrate) navigator.vibrate([100, 50, 100]);
+                    }
+                    
+                    if (level === 99) currentExp = expNeededPerLevel; 
+                }
 
-                // 👉 核心修改：集氣條反映分數累加（滿 500 分滾動一次循環）
-                let scoreGain = t.type === 'golden' ? 100 : (t.type === 'giant' ? 30 : 15);
-                roundScore += scoreGain;
-                currentScoreEl.textContent = roundScore;
+                currentLevelEl.textContent = "LV." + level;
+                titleBox.textContent = getTitle(level);
 
-                // 讓集氣進度條呈現精緻的動態循環視覺
-                let barPercentage = (roundScore % 500) / 500 * 100;
+                let barPercentage = (level === 99) ? 100 : (currentExp / expNeededPerLevel) * 100;
                 chargeBar.style.width = barPercentage + '%';
 
-                // 特效
                 let pCount = t.type === 'golden' ? 12 : 5;
                 for (let j = 0; j < pCount; j++) {
                     particles.push({
@@ -448,19 +474,18 @@
         }
     }
 
-    // 🔴 漏接烏龜扣血與斷 Combo
     function handleMissTurtle(type, x, y) {
         if (!isPlaying) return;
 
         let penalty = 8; 
-        let label = "漏接 -8% HP";
+        let label = "漏接 -8% 生命";
 
         if (type === 'golden') {
             penalty = 12;
-            label = "漏接 -12% HP";
+            label = "漏接 -12% 生命";
         } else if (type === 'giant') {
-            penalty = 20; // 巨型大烏龜漏接最傷
-            label = "漏接 -20% HP";
+            penalty = 20; 
+            label = "漏接 -20% 生命";
         }
 
         hp = Math.max(0, hp - penalty);
@@ -488,18 +513,8 @@
         clearTimeout(spawnTimer);
         comboTextEl.classList.remove('active');
 
-        // 結算評價與分數看板
-        sunFinalScoreEl.textContent = `本局累計得分：${roundScore} 分`;
-
-        if (roundScore >= 800) {
-            sunEvaluationEl.textContent = `🔥 狂暴大晴天！你是超級晴天大師！`;
-        } else if (roundScore >= 400) {
-            sunEvaluationEl.textContent = `☀️ 絕對是個大晴天！集氣非常充沛！`;
-        } else if (roundScore >= 150) {
-            sunEvaluationEl.textContent = `🌤️ 太陽公公露臉囉！好天氣在路上了！`;
-        } else {
-            sunEvaluationEl.textContent = `☁️ 陰天努力中！再燒一輪試試看！`;
-        }
+        sunFinalScoreEl.textContent = `最終修仙境界：LV.${level}`;
+        sunEvaluationEl.textContent = getTitle(level);
 
         sunOverlay.classList.add('show');
         if (navigator.vibrate) navigator.vibrate([150, 80, 150]);
