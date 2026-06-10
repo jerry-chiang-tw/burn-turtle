@@ -42,6 +42,31 @@
         .info-board h1 { font-size: 1.2rem; color: #333; margin: 0 0 4px 0; }
         .info-board p { margin: 2px 0; color: #555; font-size: 0.95rem; }
         
+        /* 📱 日期輸入框樣式優化 */
+        .date-input-wrapper {
+            margin: 4px 0;
+            font-size: 0.95rem;
+            color: #333;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 5px;
+        }
+        .date-picker {
+            font-family: inherit;
+            font-size: 0.95rem;
+            font-weight: bold;
+            color: #e65100;
+            border: 1px solid #ccc;
+            border-radius: 6px;
+            padding: 2px 6px;
+            background: #fff;
+            outline: none;
+            cursor: pointer;
+            -webkit-user-select: auto; /* 允許使用者點擊輸入框 */
+            user-select: auto;
+        }
+
         /* 數據列 */
         .stats-container {
             display: flex;
@@ -228,6 +253,12 @@
         <h1>☀️ STAFF ON MOVE ☀️</h1>
         <p><strong>活動：</strong>步入山林 夏季野行</p>
         
+        <div class="date-input-wrapper">
+            <strong>時間：</strong>
+            <input type="date" id="eventDatePicker" class="date-picker" value="2026-06-12">
+            <strong>| 地點：</strong>劍潭山步道
+        </div>
+        
         <div class="stats-container">
             <div class="counter-box" style="color: #2e7d32; background: rgba(46,125,50,0.1);">🌟 等級: <span id="currentLevel">LV.0</span></div>
             <div class="counter-box" id="titleBox" style="color: #333; background: #fff; box-shadow: 0 2px 5px rgba(0,0,0,0.05);">菜鳥尋龜人 🐢</div>
@@ -236,7 +267,6 @@
         <div id="comboText">0 Combo</div>
     </div>
 
-    <!-- 雙條顯示區 -->
     <div class="bars-container" id="barsContainer">
         <div class="bar-wrapper">
             <span>❤️ 生命值:</span>
@@ -254,9 +284,8 @@
 
     <div id="canvasContainer">
         <canvas id="mainCanvas"></canvas>
-        <div id="gameHint">🐢 戳烏龜：獲得經驗值（EXP）以太全力升級！<br>❌ 狂暴超速！Combo 越高或等級越高，爬行速度飆升越快！<br>漏接烏龜扣血且斷 Combo，看你能修煉到哪種烏龜境界！</div>
+        <div id="gameHint">🐢 戳烏龜：獲得經驗值（EXP）以太全力升級！<br>❌ 本局無法回血！血條扣空即結束！<br>漏接烏龜扣血且斷 Combo，看你能修煉到哪種烏龜境界！</div>
         
-        <!-- 大太陽結算層 -->
         <div id="sunOverlay">
             <div class="big-sun">🌞</div>
             <div class="sun-title" id="sunEvaluation">境界稱號</div>
@@ -280,6 +309,7 @@
     const barsContainer = document.getElementById('barsContainer');
     const hpBar = document.getElementById('hpBar');
     const chargeBar = document.getElementById('chargeBar');
+    const eventDatePicker = document.getElementById('eventDatePicker');
     
     let turtles = [];
     let particles = [];
@@ -324,7 +354,8 @@
         startBtn.style.display = 'none';
         gameHint.style.display = 'none';
         barsContainer.style.display = 'block';
-        
+        eventDatePicker.disabled = true; // 遊戲進行中鎖定日期框，防止誤觸
+
         turtles = [];
         particles = [];
         screenTexts = [];
@@ -349,7 +380,6 @@
         const w = canvas.width / dpr;
         const h = canvas.height / dpr;
 
-        // 生成頻率也會隨之提早加快
         let spawnInterval = Math.max(180, 1100 - (level * 18) - (currentCombo * 12)); 
 
         let turtleType = 'normal';
@@ -363,9 +393,6 @@
 
     function spawnTurtle(w, h, type) {
         let size = Math.random() * 5 + 35; 
-        
-        // 👉 核心修改：大幅拉高 Combo 數對移動速度的影響係數 (從原本 0.025 大幅提升至 0.08)
-        // 這樣只要手速快連續點中，幾隻之後烏龜速度就會像火箭一樣往上噴
         let speedMultiplier = 0.6 + (level * 0.04) + (currentCombo * 0.08);
         let speed = Math.random() * 0.7 + speedMultiplier; 
 
@@ -517,7 +544,9 @@
         clearTimeout(spawnTimer);
         comboTextEl.classList.remove('active');
 
-        sunFinalScoreEl.textContent = `最終修仙境界：LV.${level}`;
+        // 獲取使用者填入的日期資訊，動態呈現在結算卡片上
+        let selectedDate = eventDatePicker.value ? eventDatePicker.value.replace(/-/g, ' / ') : '活動當天';
+        sunFinalScoreEl.textContent = `${selectedDate} 最終境界：LV.${level}`;
         sunEvaluationEl.textContent = getTitle(level);
 
         sunOverlay.classList.add('show');
@@ -534,6 +563,7 @@
         barsContainer.style.display = 'none';
         startBtn.style.display = 'block';
         gameHint.style.display = 'block';
+        eventDatePicker.disabled = false; // 解鎖日期框
     }
 
     function animate() {
