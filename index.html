@@ -42,7 +42,7 @@
         .info-board h1 { font-size: 1.2rem; color: #333; margin: 0 0 4px 0; }
         .info-board p { margin: 2px 0; color: #555; font-size: 0.95rem; }
         
-        /* 📱 日期輸入框樣式優化 */
+        /* 日期輸入框 */
         .date-input-wrapper {
             margin: 4px 0;
             font-size: 0.95rem;
@@ -63,7 +63,7 @@
             background: #fff;
             outline: none;
             cursor: pointer;
-            -webkit-user-select: auto; /* 允許使用者點擊輸入框 */
+            -webkit-user-select: auto; 
             user-select: auto;
         }
 
@@ -159,6 +159,7 @@
         .btn-start {
             background: linear-gradient(135deg, #4caf50 0%, #2e7d32 100%);
             color: white;
+            cursor: pointer;
         }
         button:active { transform: scale(0.95); }
 
@@ -171,6 +172,7 @@
             border-radius: 24px 24px 0 0;
             box-shadow: 0 -4px 12px rgba(0,0,0,0.05);
             overflow: hidden;
+            cursor: crosshair; /* 電腦版讓滑鼠游標變成準心，更好瞄準 */
         }
         canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; }
 
@@ -233,6 +235,7 @@
             box-shadow: 0 6px 12px rgba(0,0,0,0.2);
             width: 70%;
             max-width: 280px;
+            cursor: pointer;
         }
 
         @keyframes comboPop {
@@ -267,6 +270,7 @@
         <div id="comboText">0 Combo</div>
     </div>
 
+    <!-- 雙條顯示區 -->
     <div class="bars-container" id="barsContainer">
         <div class="bar-wrapper">
             <span>❤️ 生命值:</span>
@@ -286,6 +290,7 @@
         <canvas id="mainCanvas"></canvas>
         <div id="gameHint">🐢 戳烏龜：獲得經驗值（EXP）以太全力升級！<br>❌ 本局無法回血！血條扣空即結束！<br>漏接烏龜扣血且斷 Combo，看你能修煉到哪種烏龜境界！</div>
         
+        <!-- 大太陽結算層 -->
         <div id="sunOverlay">
             <div class="big-sun">🌞</div>
             <div class="sun-title" id="sunEvaluation">境界稱號</div>
@@ -354,7 +359,7 @@
         startBtn.style.display = 'none';
         gameHint.style.display = 'none';
         barsContainer.style.display = 'block';
-        eventDatePicker.disabled = true; // 遊戲進行中鎖定日期框，防止誤觸
+        eventDatePicker.disabled = true; 
 
         turtles = [];
         particles = [];
@@ -417,18 +422,28 @@
         });
     }
 
-    canvas.addEventListener('click', handleCanvasClick);
-    canvas.addEventListener('touchstart', function(e) {
-        e.preventDefault();
-        handleCanvasClick(e.touches[0]);
-    });
-
-    function handleCanvasClick(e) {
-        if (!isPlaying) return;
-
+    // 👉 核心修改：徹底分離滑鼠與手勢觸控事件，避免電腦版失效
+    // 電腦滑鼠事件
+    canvas.addEventListener('mousedown', function(e) {
         const rect = canvas.getBoundingClientRect();
         const clickX = e.clientX - rect.left;
         const clickY = e.clientY - rect.top;
+        checkHitTurtle(clickX, clickY);
+    });
+
+    // 手機觸控事件
+    canvas.addEventListener('touchstart', function(e) {
+        e.preventDefault(); // 阻擋縮放，但不影響電腦版了
+        const rect = canvas.getBoundingClientRect();
+        const touch = e.touches[0];
+        const clickX = touch.clientX - rect.left;
+        const clickY = touch.clientY - rect.top;
+        checkHitTurtle(clickX, clickY);
+    });
+
+    // 核心擊中判定
+    function checkHitTurtle(clickX, clickY) {
+        if (!isPlaying) return;
 
         for (let i = turtles.length - 1; i >= 0; i--) {
             let t = turtles[i];
@@ -544,7 +559,6 @@
         clearTimeout(spawnTimer);
         comboTextEl.classList.remove('active');
 
-        // 獲取使用者填入的日期資訊，動態呈現在結算卡片上
         let selectedDate = eventDatePicker.value ? eventDatePicker.value.replace(/-/g, ' / ') : '活動當天';
         sunFinalScoreEl.textContent = `${selectedDate} 最終境界：LV.${level}`;
         sunEvaluationEl.textContent = getTitle(level);
@@ -563,7 +577,7 @@
         barsContainer.style.display = 'none';
         startBtn.style.display = 'block';
         gameHint.style.display = 'block';
-        eventDatePicker.disabled = false; // 解鎖日期框
+        eventDatePicker.disabled = false; 
     }
 
     function animate() {
